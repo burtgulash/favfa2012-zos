@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
 #include <semaphore.h>
@@ -15,10 +16,6 @@ sem_t print_lock;
 sem_t becut_sync;
 sem_t cut_sync;
 
-
-#define NUM_THREADS 17
-#define NUM_CUSTOMERS (NUM_THREADS - 1)
-#define QUEUE_SIZE 4 
 
 
 void *customer(void *threadid)
@@ -60,7 +57,7 @@ void *barber(void *num_customers)
 {
 	int i;
 
-	n = (int) num_customers;
+    n = (int) num_customers;
 	/* Wait for first customer to increase n. */
 	sem_post(&n_lock);
 	
@@ -88,12 +85,35 @@ void *barber(void *num_customers)
 }
 
 
-int main()
+int main(int argc, char **argv)
 {
-	pthread_t threads[NUM_THREADS];
+	pthread_t *threads;
 	pthread_attr_t attr;
 	int t;
 	void *status;
+	int queue_size, num_threads, num_customers;
+
+	if (argc == 3) {
+		num_customers = strtol(argv[1], NULL, 10);
+		queue_size = strtol(argv[2], NULL, 10);
+
+		if (num_customers <= 0) {
+			printf("Too few customers\n");
+			return 2;
+		}
+
+		if (queue_size <= 0) {
+			printf("Queue size too small\n");
+			return 2;
+		}
+	} else {
+		num_customers = 17;
+		queue_size = 4;
+	}
+
+	num_threads = num_customers + 1;
+	threads = (pthread_t *) malloc((sizeof(pthread_t)) * num_threads);
+	
 
 	/* Initialize threads. */
 	pthread_attr_init(&attr);
@@ -110,24 +130,28 @@ int main()
 	sem_init(&cut_sync, 0, 0);
 	sem_init(&becut_sync, 0, 0);
 
-	queue_empty = QUEUE_SIZE;
+	queue_empty = queue_size;
 
 
-	printf("Number of customers: %d\n", NUM_CUSTOMERS);
-	printf("Queue size         : %d\n", QUEUE_SIZE);
+	printf("Number of customers: %d\n", num_customers);
+	printf("Queue size         : %d\n", queue_size);
 	printf("\n");
 
 	printf("START\n");
 	/* Spawn threads. */
-	(void) pthread_create(&threads[0], &attr, barber, (void *) NUM_CUSTOMERS);
-	for (t = 0; t < NUM_CUSTOMERS; t++)
-		(void) pthread_create(&threads[t], &attr, customer, (void *) t);
+	if (pthread_create(&threads[0], &attr, barber, (void *) num_customers) != 0)
+		return 1;
+	for (t = 0; t < num_customers; t++)
+		if (pthread_create(&threads[t], &attr, customer, (void *) t) != 0)
+			return 1;
 
 	/* Join threads. */
 	(void) pthread_join(threads[0], &status);
-	for (t = 0; t < NUM_CUSTOMERS; t++)
+	for (t = 0; t < num_customers; t++)
 		(void) pthread_join(threads[t], &status);
 	printf("END\n");
+
+	free(threads);
 
 	return 0;
 }

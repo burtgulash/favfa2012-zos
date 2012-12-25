@@ -1,0 +1,104 @@
+\documentclass[titlepage]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[czech]{babel}
+
+
+\begin{document}
+\begin{titlepage}
+\begin{center}
+	\mbox{} \\[3cm]
+	\huge{Semestrální práce z předmětu KIV/ZOS} \\[2.5cm]
+	\Large{Tomáš Maršálek, A10B0632P} \\
+	\large{marsalet@students.zcu.cz} \\[1cm]
+	\normalsize{\today}
+\end{center}
+\thispagestyle{empty}
+\end{titlepage}
+
+\section{Problém spícího holiče}
+Ve městě sídlí jeden holič, který má pouze jedno křeslo, ve kterém holí
+zákazníky. Když do jeho holičství přijde zákazník, usadí se v čekárně a bude
+čekat, dokud ho holič nepřijme do křesla. Čekárna má ovšem omezený počet míst,
+tedy v případě plné čekárny každý další zákazník musí odejít.
+
+\section{Řešení}
+Program je v jazyce C, pro paralelizaci jsou použita vlákna knihovny
+\textbf{pthread}.
+
+\subsection{Správa vláken}
+Pro vytvoření vlákna je použita funkce \textbf{pthread\_create}, u které je
+třeba kontrolovat vrácenou hodnotu. V případě hodnoty různé od nuly se
+nepodařilo vytvořit vlákno a program je raději ukončen.  
+
+Na konci programu se čeká na všechna vytvořená vlákna pomocí
+\textbf{pthread\_join}. Bez použití tohoto čekání by program skončil dříve, než
+by všechna vlákna dokončila svou práci.
+
+\subsection{Synchronizace}
+Celkem je použito sedm semaforů. Čtyři pro samotný korektní běh problému
+spícího holiče a dva semafory čistě kvůli synchronizaci výpisů holiče a
+zákazníka. 
+
+\begin{enumerate}
+	\item {\em customer\_ready} - zákazníci dávají vědět holiči, že jsou
+připraveni k ostříhání.
+	\item {\em barber\_ready} - holič dává vědět zákazníkům, že je volné křeslo.
+	\item {\em queue\_empty} - celočíselná hodnota, udává počet volných míst v
+čekárně. Je chráněna binárním semaforem {\em queue\_lock}.
+	\item {\em n\_lock} - chrání proměnnou {\em n}, aby nedošlo k dvojímu
+zápisu. Proměnná {\em n} udává počet zákazníků, kteří buď skončili v čekárně
+nebo odešli kvůli plné čekárně.
+	\item {\em print\_lock} - zámek kolem každého výpisu, aby náhodou nedošlo k
+vypisování ze dvou vláken najednou.
+	\item {\em becut\_sync} - čistě synchronizační semafor pro vlákna
+zákazníků, aby holičův výpis proběhl před zákazníkovým.
+	\item {\em cut\_sync} - stejná funkce, jen pro vlákno holiče.
+\end{enumerate}
+
+\section{Použití programu}
+Program spustíme z konzole buďto bez parametrů, kde počet zákazníků bude na
+výchozí hodnotě 17 a velikost čekárny 4.
+\begin{verbatim}
+$ ./sleepingbarber
+\end{verbatim}
+
+Chceme-li parametry modifikovat, zadáme nejprve počet zákazníků, poté velikost
+čekárny.
+\begin{verbatim}
+$ ./sleepingbarber 8 4
+\end{verbatim}
+
+
+\section{Ukázka běhu programu}
+\begin{verbatim}
+Number of customers: 8
+Queue size         : 4
+
+START
+Customer 0 waits.
+Barber cuts hair.
+Customer 0 is cut.
+Customer 1 waits.
+Barber cuts hair.
+Customer 1 is cut.
+Customer 3 waits.
+Barber cuts hair.
+Customer 3 is cut.
+Customer 2 waits.
+Barber cuts hair.
+Customer 2 is cut.
+Customer 4 waits.
+Barber cuts hair.
+Customer 4 is cut.
+Customer 5 waits.
+Barber cuts hair.
+Customer 5 is cut.
+Customer 6 waits.
+Customer 7 waits.
+Barber cuts hair.
+Customer 6 is cut.
+Barber cuts hair.
+Customer 7 is cut.
+END
+\end{verbatim}
+\end{document}
